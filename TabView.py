@@ -1,27 +1,48 @@
+import csv
 import dash
 import dash_bootstrap_components as dbc
 import dash_core_components as dcc
 import dash_html_components as html
-from dash.dependencies import Input, Output
+import pandas as pd
+from sqlConn import DataUtility
 
-Total_Time_Scheduled = 2363.5
-Total_Time_Unscheduled = 741
-Total_Time_ScheduledP = 76.13
-Total_Time_UnscheduledP = 23.87
-Leading_Scheduled = 76.13
-Leading_Unscheduled = 23.87
-MTTR = .81
-MTBF = 9.59
+query = '''
+
+select * from PdMEng.kjpDashboardValues
+
+'''
+sql = DataUtility()
+conn = #replace with odbc string
+df = pd.DataFrame(sql.min_query(query))
+df.to_csv("assets/bs.csv", index=False)
+
+
+with open("assets/bs.csv", 'r') as csvfile:
+    so = csv.reader(csvfile, delimiter=',', quotechar='"')
+    so_data = []
+    for row in so:
+        so_data.append(row)
+
+Total_Time_Scheduled = so_data[1]
+Total_Time_Unscheduled = so_data[2]
+Total_Time_ScheduledP = so_data[3]
+Total_Time_UnscheduledP = so_data[4]
+Leading_Scheduled = so_data[5]
+Leading_Unscheduled = so_data[6]
+MTTR = so_data[7]
+MTBF = so_data[8]
 MTTR_Definition = "This metric is the average time needed to restore an asset to its full operational capabilities " \
                   "after a loss of function "
 MTBF_Definition = "This metric is the average length of operating time between failures for an asset or " \
                   "component"
 
 colors = {'background': '#4f81bd', 'text': 'white'}
+borders = {'border': '2px #073763 solid', 'border-radius': '15px'}
 
 app = dash.Dash(__name__)
 # app.config.suppress_callback_exceptions = True
 # noinspection DuplicatedCode
+
 app.layout = html.Div(
     dcc.Tabs(children=[
         dcc.Tab(label='Tab one', children=[
@@ -298,25 +319,25 @@ app.layout = html.Div(
                                   'color': colors['text'],
                                   'backgroundColor': colors['background'],
                                   'fontSize': 65,
-                                  'border': '2px #073763 solid',
-                                  'border-radius': '30px'}),
+                                  'border': borders['border'],
+                                  'border-radius': borders['border-radius']}),
                       html.Div("MTTR-Mean Time to Repair:",
                                style={
                                    'textAlign': 'center',
                                    'color': colors['text'],
                                    'backgroundColor': colors['background'],
                                    'fontSize': 60,
-                                   'border': '2px #073763 solid',
-                                   'border-radius': '15px',
+                                   'border': borders['border'],
+                                   'border-radius': borders['border-radius'],
                                    'width': 800,
-                                   'margin-bottom': 10}),
+                                   'margin-bottom': 3}),
                       dcc.Textarea(value=MTTR_Definition,
                                    style={
                                        'fontSize': 50,
                                        'color': colors['text'],
-                                       'border': '2px #073763 solid',
                                        'backgroundColor': colors['background'],
-                                       'border-radius': '15px',
+                                       'border': borders['border'],
+                                       'border-radius': borders['border-radius'],
                                        'width': '100%', 'height': 150
                                    }),
                       html.Div("MTBF- Mean Time Between Failure:",
@@ -326,19 +347,19 @@ app.layout = html.Div(
                                    'color': colors['text'],
                                    'backgroundColor': colors['background'],
                                    'fontSize': 60,
-                                   'border': '2px #073763 solid',
-                                   'border-radius': '15px',
+                                   'border': borders['border'],
+                                   'border-radius': borders['border-radius'],
                                    'width': 1000,
-                                   'margin-bottom': 10
+                                   'margin-bottom': 3
                                }),
                       dcc.Textarea(
                           value=MTBF_Definition,
                           style={
                               'fontSize': 50,
                               'color': colors['text'],
-                              'border': '2px #073763 solid',
                               'backgroundColor': colors['background'],
-                              'border-radius': '15px',
+                              'border': borders['border'],
+                              'border-radius': borders['border-radius'],
                               'width': '100%', 'height': 150
                           }),
                       ],
