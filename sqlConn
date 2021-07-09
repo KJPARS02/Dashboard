@@ -1,0 +1,49 @@
+import pandas as pd
+import numpy as np
+from datetime import datetime as dt
+import time
+import yaml
+import pyodbc
+import sys
+import csv
+
+
+
+
+#####################SQL Utilities#####################
+class DataUtility:
+    def __init__(self):
+        # self.instance_id = dt.now().strftime('%Y%m%d%H%M%S%f')
+        # default declarations
+        print('\topening conn from file')
+        with open('creds/credentials.yml', 'r') as sql_cred_file:
+            # sql_cred_struct = yaml.safe_load(sql_cred_file)
+            self.sql_odbc_str = 'DSN=keyvanTest;Database=Digitalization;TrustedConnection=yes;MARS_Connection=yes;UID=PyUsrDashRdr;PWD=dash*reader'
+            self.conn = pyodbc.connect(self.sql_odbc_str)
+            self.cursor = self.conn.cursor()
+        print('\tconn opened')
+
+    def min_query(self, sql_str: str):
+        """
+        minimum lite code for SQL data pull into result DF.
+        :param sql_str: str to execute as SQL script, can be select or SP
+        """
+        print('\tPulling qry:')
+        print('\t{0}'.format(sql_str))
+        res_df = pd.read_sql_query(sql_str, self.conn)
+        print('\tresults, rows={0}, cols={1}'.format(res_df.shape[0], res_df.shape[1]))
+        return res_df
+
+    def min_exec(self, sql_str: str):
+        """
+        minumum lite code for SQL SP execution, expecting no return results
+        :param sql_str: str to execute as SQL script, can be SP, insert, etc., but any results returned are ignored
+        """
+        print('\tRunning qry:')
+        print('\t{0}'.format(sql_str))
+        self.cursor.execute(sql_str)
+        self.cursor.commit()
+        print('\tSQL has run')
+
+
+
