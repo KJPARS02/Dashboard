@@ -7,11 +7,15 @@ import pandas as pd
 import plotly.express as px
 import pyodbc
 import datetime
+import config
 
 # noinspection DuplicatedCode
 
-# how many seconds between each layout
-INTERVAL = 20
+
+
+
+INTERVAL = 25  # how many seconds between each layout
+UPDATE_INTERVAL = 60  # how many seconds before updating the data
 
 colors = {'background': '#4f81bd', 'text': 'white'}
 borders = {'border': '2px #073763 solid', 'border-radius': '15px'}
@@ -32,74 +36,103 @@ app.layout = html.Div(children=[
         interval=INTERVAL * 1000,  # in milliseconds
         n_intervals=0
     ),
+    html.Div(id='out', style={'display': 'none'}),
+    dcc.Interval(id='interval2',
+                 interval=UPDATE_INTERVAL * 1000,
+                 n_intervals=0)
 ], )
 
 
-@app.callback(Output('app-container', 'children'),
-              [Input('interval1', 'n_intervals')])
-def CHANGE_PAGE(n_intervals):
+@app.callback(Output('out', 'children'),
+              [Input('interval2', 'n_intervals')])
+def UPDATE_DATA(n_intervals):
     conn = pyodbc.connect('DSN=keyvanTest;'
                           'Database=Digitalization;'
                           'TrustedConnection=yes;'
                           'MARS_Connection=yes;'
                           'UID=PyUsrDashRdr;'
                           'PWD=dash*reader')
-    DashboardValues = pd.read_sql_query('''select * from PdMEng.kjpDashboardValues''', conn)
-   # Dashboard_Values = pd.read_sql('''exec [PdMEng].getDashboardValues''', conn)
-    MTTRMTBF = pd.read_sql('''exec PdMEng.figure_df''', conn)
-    tab4_figure_df = pd.read_sql('''exec PdMEng.get_tab4_data''', conn)
-    tab5_figure_df = pd.read_sql('''exec PdMEng.get_tab5_data''', conn)
-
+    global DashboardValues
+    DashboardValues = pd.read_sql(config.HM_SQL_Data['Dashboard_Values'], conn)
+    global tab5_figure_df
+    tab5_figure_df = pd.read_sql(config.HM_SQL_Data['tab5_df'], conn)
+    global tab4_figure_df
+    tab4_figure_df = pd.read_sql(config.HM_SQL_Data['tab4_df'], conn)
+    global complianceData
+    complianceData = pd.read_sql(config.HM_SQL_Data['compliance_Data'], conn)
+    global dates1
     # converts the date from int to a date in year/month format
-    tab4_YYYYMM = tab4_figure_df['YYYYMM']
-    dates = [datetime.datetime.strptime(str(dt_int), "%Y%m") for dt_int in tab4_YYYYMM]
-    fig1 = px.bar(tab4_figure_df, x=dates, y='MeanTime',
+    dates1 = [datetime.datetime.strptime(str(dt_int), "%Y%m") for dt_int in tab4_figure_df['YYYYMM']]
+    global dates2
+    dates2 = [datetime.datetime.strptime(str(dt_int), "%Y%m") for dt_int in tab5_figure_df['YYYYMM']]
+    global fig1
+    fig1 = px.bar(tab4_figure_df, x=dates1, y='MeanTime',
                   text='MeanTime',
                   labels=dict(x='Month'),
-                  template='simple_white'
+                  template='simple_white',
+                  height=800
                   )
     fig1.update_xaxes(
-        tickvals=dates,
+        tickvals=dates1,
         tickformat='%b %Y'
     )
     fig1.update_yaxes(
         title_text='Mean Time (hours)'
     )
-
-    tab5_YYYYMM = tab5_figure_df['YYYYMM']
-    dates = [datetime.datetime.strptime(str(dt_int), "%Y%m") for dt_int in tab5_YYYYMM]
-    fig2 = px.bar(tab5_figure_df, x=dates, y='MeanTime',
+    global fig2
+    fig2 = px.bar(tab5_figure_df, x=dates2, y='MeanTime',
                   text='MeanTime',
                   labels=dict(x='Month'),
-                  template='simple_white'
+                  template='simple_white',
+                  height=800
                   )
     fig2.update_xaxes(
-        tickvals=dates,
+        tickvals=dates2,
         tickformat='%b %Y'
     )
     fig2.update_yaxes(
         title_text='Mean Time (hours)'
     )
+    global fig3
+    fig3 = px.bar(complianceData, x='weeknames', y='count',
+                  template='simple_white',
+                  height=800,
+                  labels='count'
 
+                  )
+    fig3.update_xaxes(
+        title_text='Weeks'
+    )
+    fig3.update_yaxes(
+        title_text='Compliance Percentage',
+        tickformat='1%',
+    )
+    # fig3.add_trace(go.Scatter(name='line of best fit', x='Weeks', y=complianceData['bestfit'], mode='lines'))
+    return n_intervals
+
+
+@app.callback(Output('app-container', 'children'),
+              [Input('interval1', 'n_intervals')])
+def CHANGE_PAGE(n_intervals):
     # references to the dataframes that are displayed in the dashboard
-    Total_Time_Scheduled = DashboardValues.iloc[1, 1]
-    Total_Time_Unscheduled = DashboardValues.iloc[2, 1]
-    Total_Time_ScheduledP = DashboardValues.iloc[3, 1]
-    Total_Time_UnscheduledP = DashboardValues.iloc[4, 1]
-    Leading_Scheduled = DashboardValues.iloc[5, 1]
-    Leading_Unscheduled = DashboardValues.iloc[6, 1]
-    MTTR = MTTRMTBF.iloc[2, 2]
-    MTBF = MTTRMTBF.iloc[3, 2]
-    MTTR_Definition = "This metric is the average time needed to restore an asset to its full operational capabilities " \
+    Total_Time_Scheduled = DashboardValues.iloc[0, 0]
+    Total_Time_Unscheduled = DashboardValues.iloc[0, 1]
+    Total_Time_ScheduledP = DashboardValues.iloc[0, 2]
+    Total_Time_UnscheduledP = DashboardValues.iloc[0, 3]
+    Leading_Scheduled = DashboardValues.iloc[0, 4]
+    Leading_Unscheduled = DashboardValues.iloc[0, 5]
+    MTTR = tab4_figure_df.iloc[0, 2]
+    MTBF = tab5_figure_df.iloc[0, 2]
+    MTTR_Definition = "The average time needed to restore an asset to its full operational capabilities " \
                       "after a loss of function "
-    MTBF_Definition = "This metric is the average length of operating time between failures for an asset or " \
+    MTBF_Definition = "The average length of operating time between failures for an asset or " \
                       "component"
 
     # noinspection DuplicatedCode
     # layouts the app will roll through are contained in this list
     PAGES = [
         dcc.Tab(label='Tab one', children=[
-            dbc.Row(html.H1('Hot Mill Maintenance KPI Dashboard (Total Score)'), style=headerstyle),
+            dbc.Row(html.H1(config.HM_SQL_Data['dashboard_Header']), style=headerstyle),
             dbc.Row(children=[
                 html.Span("Leading Indicators",
                           style={'textAlign': 'left',
@@ -349,7 +382,15 @@ def CHANGE_PAGE(n_intervals):
                          ),
             ])
         ]),
-        dcc.Tab(label='Tab three', children=[
+        dcc.Tab(label='Tab Three', children=[
+            dbc.Row(html.H1('HM Daytech Compliance: Labor vs Scheduled - Breaks'), style=headerstyle),
+            dbc.Row(dcc.Graph(
+                id='ComplianceGraph',
+                figure=fig3,
+            ),
+            )
+        ]),
+        dcc.Tab(label='Tab Four', children=[
             html.Div(children=
                      [dbc.Row(html.H1('Defining MTTR and MTBF', ), style=headerstyle),
                       html.Div("MTTR-Mean Time to Repair:",
@@ -398,7 +439,7 @@ def CHANGE_PAGE(n_intervals):
 
                      )
         ]),
-        dcc.Tab(label='Tab Four', children=[
+        dcc.Tab(label='Tab Five', children=[
             html.Div(html.Img(src=app.get_asset_url("mtbfmttr_graphic.jpg"),
                               style={
                                   'height': '85%',
@@ -408,21 +449,18 @@ def CHANGE_PAGE(n_intervals):
                          'textAlign': 'center'
                      })
         ]),
-        dcc.Tab(label='Tab Five', children=[
+        dcc.Tab(label='Tab Six', children=[
             html.Div(children=[
                 dbc.Row(dbc.Col(html.H1('Mean Time to Repair(MTTR): Mechanical Only'), style=headerstyle), ),
                 dbc.Row(dbc.Col(dcc.Graph(
-                    id='Graph',
+                    id='MTTRGraph',
                     figure=fig1,
-                    style={
-
-                    }
                 )
                 ),
                 )
             ])
         ]),
-        dcc.Tab(label='Tab Six', children=[
+        dcc.Tab(label='Tab Seven', children=[
             dbc.Row(dbc.Col(html.H1('Mean Time Between Failure(MTBF): Mechanical Only')), style=headerstyle, ),
             dcc.Graph(
                 figure=fig2
